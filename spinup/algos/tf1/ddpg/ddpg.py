@@ -38,7 +38,6 @@ class ReplayBuffer:
                     done=self.done_buf[idxs])
 
 
-
 def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0, 
          steps_per_epoch=4000, epochs=100, replay_size=int(1e6), gamma=0.99, 
          polyak=0.995, pi_lr=1e-3, q_lr=1e-3, batch_size=100, start_steps=10000, 
@@ -126,6 +125,7 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
 
     """
 
+    print("THIS IS MINE SPINUP RIGHT NOW")
     logger = EpochLogger(**logger_kwargs)
     logger.save_config(locals())
 
@@ -200,15 +200,17 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
             o, d, ep_ret, ep_len = test_env.reset(), False, 0, 0
             while not(d or (ep_len == max_ep_len)):
                 # Take deterministic actions at test time (noise_scale=0)
-                o, r, d, _ = test_env.step(get_action(o, 0))
+                o, r, d, info = test_env.step(get_action(o, 0))
                 ep_ret += r
                 ep_len += 1
             logger.store(TestEpRet=ep_ret, TestEpLen=ep_len)
+            logger.store(TestEpProfit=info['profit'])
 
     # Prepare for interaction with environment
     total_steps = steps_per_epoch * epochs
     start_time = time.time()
     o, ep_ret, ep_len = env.reset(), 0, 0
+    sell, buy, hold = 0, 0, 0
 
     # Main loop: collect experience in env and update/log each epoch
     for t in range(total_steps):
@@ -222,9 +224,12 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
             a = env.action_space.sample()
 
         # Step the env
-        o2, r, d, _ = env.step(a)
+        o2, r, d, info = env.step(a)
         ep_ret += r
         ep_len += 1
+        buy += info['buy']
+        hold += info['hold']
+        sell += info['sell']
 
         # Ignore the "done" signal if it comes from hitting the time
         # horizon (that is, when it's an artificial terminal signal
@@ -240,8 +245,11 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
 
         # End of trajectory handling
         if d or (ep_len == max_ep_len):
+            logger.store(EpProfit=info['profit'])
             logger.store(EpRet=ep_ret, EpLen=ep_len)
+            logger.store(Sell=sell, Buy=buy, Hold=hold)
             o, ep_ret, ep_len = env.reset(), 0, 0
+            sell, buy, hold = 0, 0, 0
 
         # Update handling
         if t >= update_after and t % update_every == 0:
@@ -275,9 +283,14 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
 
             # Log info about epoch
             logger.log_tabular('Epoch', epoch)
+            logger.log_tabular('Sell', average_only=True)
+            logger.log_tabular('Buy', average_only=True)
+            logger.log_tabular('Hold', average_only=True)
+            logger.log_tabular('EpProfit', with_min_and_max=True)
             logger.log_tabular('EpRet', with_min_and_max=True)
             logger.log_tabular('TestEpRet', with_min_and_max=True)
             logger.log_tabular('EpLen', average_only=True)
+            logger.log_tabular('TestEpProfit', average_only=True)
             logger.log_tabular('TestEpLen', average_only=True)
             logger.log_tabular('TotalEnvInteracts', t)
             logger.log_tabular('QVals', with_min_and_max=True)
