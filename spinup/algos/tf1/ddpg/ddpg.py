@@ -38,10 +38,10 @@ class ReplayBuffer:
                     done=self.done_buf[idxs])
 
 
-def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0, 
-         steps_per_epoch=4000, epochs=100, replay_size=int(1e6), gamma=0.99, 
-         polyak=0.995, pi_lr=1e-3, q_lr=1e-3, batch_size=100, start_steps=10000, 
-         update_after=1000, update_every=50, act_noise=0.1, num_test_episodes=10, 
+def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
+         steps_per_epoch=4000, epochs=100, replay_size=int(1e6), gamma=0.99,
+         polyak=0.995, pi_lr=1e-3, q_lr=1e-3, batch_size=100, start_steps=10000,
+         update_after=1000, update_every=50, act_noise=0.1, num_test_episodes=10,
          max_ep_len=1000, logger_kwargs=dict(), save_freq=1):
     """
     Deep Deterministic Policy Gradient (DDPG)
@@ -51,8 +51,8 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
         env_fn : A function which creates a copy of the environment.
             The environment must satisfy the OpenAI Gym API.
 
-        actor_critic: A function which takes in placeholder symbols 
-            for state, ``x_ph``, and action, ``a_ph``, and returns the main 
+        actor_critic: A function which takes in placeholder symbols
+            for state, ``x_ph``, and action, ``a_ph``, and returns the main
             outputs from the agent's Tensorflow computation graph:
 
             ===========  ================  ======================================
@@ -60,20 +60,20 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
             ===========  ================  ======================================
             ``pi``       (batch, act_dim)  | Deterministically computes actions
                                            | from policy given states.
-            ``q``        (batch,)          | Gives the current estimate of Q* for 
+            ``q``        (batch,)          | Gives the current estimate of Q* for
                                            | states in ``x_ph`` and actions in
                                            | ``a_ph``.
-            ``q_pi``     (batch,)          | Gives the composition of ``q`` and 
-                                           | ``pi`` for states in ``x_ph``: 
+            ``q_pi``     (batch,)          | Gives the composition of ``q`` and
+                                           | ``pi`` for states in ``x_ph``:
                                            | q(x, pi(x)).
             ===========  ================  ======================================
 
-        ac_kwargs (dict): Any kwargs appropriate for the actor_critic 
+        ac_kwargs (dict): Any kwargs appropriate for the actor_critic
             function you provided to DDPG.
 
         seed (int): Seed for random number generators.
 
-        steps_per_epoch (int): Number of steps of interaction (state-action pairs) 
+        steps_per_epoch (int): Number of steps of interaction (state-action pairs)
             for the agent and the environment in each epoch.
 
         epochs (int): Number of epochs to run and train agent.
@@ -82,14 +82,14 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
 
         gamma (float): Discount factor. (Always between 0 and 1.)
 
-        polyak (float): Interpolation factor in polyak averaging for target 
-            networks. Target networks are updated towards main networks 
+        polyak (float): Interpolation factor in polyak averaging for target
+            networks. Target networks are updated towards main networks
             according to:
 
-            .. math:: \\theta_{\\text{targ}} \\leftarrow 
+            .. math:: \\theta_{\\text{targ}} \\leftarrow
                 \\rho \\theta_{\\text{targ}} + (1-\\rho) \\theta
 
-            where :math:`\\rho` is polyak. (Always between 0 and 1, usually 
+            where :math:`\\rho` is polyak. (Always between 0 and 1, usually
             close to 1.)
 
         pi_lr (float): Learning rate for policy.
@@ -106,11 +106,11 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
             is full enough for useful updates.
 
         update_every (int): Number of env interactions that should elapse
-            between gradient descent updates. Note: Regardless of how long 
-            you wait between updates, the ratio of env steps to gradient steps 
+            between gradient descent updates. Note: Regardless of how long
+            you wait between updates, the ratio of env steps to gradient steps
             is locked to 1.
 
-        act_noise (float): Stddev for Gaussian exploration noise added to 
+        act_noise (float): Stddev for Gaussian exploration noise added to
             policy at training time. (At test time, no noise is added.)
 
         num_test_episodes (int): Number of episodes to test the deterministic
@@ -148,10 +148,10 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
     # Main outputs from computation graph
     with tf.variable_scope('main'):
         pi, q, q_pi = actor_critic(x_ph, a_ph, **ac_kwargs)
-    
+
     # Target networks
     with tf.variable_scope('target'):
-        # Note that the action placeholder going to actor_critic here is 
+        # Note that the action placeholder going to actor_critic here is
         # irrelevant, because we only need q_targ(s, pi_targ(s)).
         pi_targ, _, q_pi_targ  = actor_critic(x2_ph, a_ph, **ac_kwargs)
 
@@ -196,28 +196,33 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
         return np.clip(a, -act_limit, act_limit)
 
     def test_agent():
+
         for j in range(num_test_episodes):
             o, d, ep_ret, ep_len = test_env.reset(), False, 0, 0
+            sell, buy, hold = 0, 0, 0
             while not(d or (ep_len == max_ep_len)):
                 # Take deterministic actions at test time (noise_scale=0)
                 o, r, d, info = test_env.step(get_action(o, 0))
                 ep_ret += r
                 ep_len += 1
+                buy += info['buy']
+                hold += info['hold']
+                sell += info['sell']
             logger.store(TestEpRet=ep_ret, TestEpLen=ep_len)
             logger.store(TestEpProfit=info['profit'])
+            logger.store(Sell=sell, Buy=buy, Hold=hold)
 
     # Prepare for interaction with environment
     total_steps = steps_per_epoch * epochs
     start_time = time.time()
     o, ep_ret, ep_len = env.reset(), 0, 0
-    sell, buy, hold = 0, 0, 0
 
     # Main loop: collect experience in env and update/log each epoch
     for t in range(total_steps):
 
         # Until start_steps have elapsed, randomly sample actions
-        # from a uniform distribution for better exploration. Afterwards, 
-        # use the learned policy (with some noise, via act_noise). 
+        # from a uniform distribution for better exploration. Afterwards,
+        # use the learned policy (with some noise, via act_noise).
         if t > start_steps:
             a = get_action(o, act_noise)
         else:
@@ -227,9 +232,6 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
         o2, r, d, info = env.step(a)
         ep_ret += r
         ep_len += 1
-        buy += info['buy']
-        hold += info['hold']
-        sell += info['sell']
 
         # Ignore the "done" signal if it comes from hitting the time
         # horizon (that is, when it's an artificial terminal signal
@@ -239,7 +241,7 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
         # Store experience to replay buffer
         replay_buffer.store(o, a, r, o2, d)
 
-        # Super critical, easy to overlook step: make sure to update 
+        # Super critical, easy to overlook step: make sure to update
         # most recent observation!
         o = o2
 
@@ -247,9 +249,7 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
         if d or (ep_len == max_ep_len):
             logger.store(EpProfit=info['profit'])
             logger.store(EpRet=ep_ret, EpLen=ep_len)
-            logger.store(Sell=sell, Buy=buy, Hold=hold)
             o, ep_ret, ep_len = env.reset(), 0, 0
-            sell, buy, hold = 0, 0, 0
 
         # Update handling
         if t >= update_after and t % update_every == 0:
