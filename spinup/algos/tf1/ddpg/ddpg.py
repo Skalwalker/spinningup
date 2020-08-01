@@ -281,6 +281,7 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
                 logger.save_state({'env': env}, None)
 
             act_noise -= noise_reduction
+            act_noise = max(0, act_noise)
             print(act_noise)
 
             # Test the performance of the deterministic version of the agent.
