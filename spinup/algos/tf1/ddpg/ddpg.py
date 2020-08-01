@@ -126,7 +126,7 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
     """
 
     print("THIS IS MINE SPINUP RIGHT NOW")
-    noise_reduction = act_noise/(0.9*epoch)
+    noise_reduction = act_noise/(0.9*epochs)
     print(noise_reduction)
     logger = EpochLogger(**logger_kwargs)
     logger.save_config(locals())
