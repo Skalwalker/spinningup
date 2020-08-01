@@ -127,7 +127,6 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
 
     print("THIS IS MINE SPINUP RIGHT NOW")
     noise_reduction = act_noise/(0.9*epochs)
-    print(noise_reduction)
     logger = EpochLogger(**logger_kwargs)
     logger.save_config(locals())
 
@@ -282,7 +281,6 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
 
             act_noise -= noise_reduction
             act_noise = max(0, act_noise)
-            print(act_noise)
 
             # Test the performance of the deterministic version of the agent.
             test_agent()
