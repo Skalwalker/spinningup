@@ -279,8 +279,8 @@ def ddpg(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
             if (epoch % save_freq == 0) or (epoch == epochs):
                 logger.save_state({'env': env}, None)
 
-            act_noise -= noise_reduction
-            act_noise = max(0, act_noise)
+            # act_noise -= noise_reduction
+            # act_noise = max(0, act_noise)
 
             # Test the performance of the deterministic version of the agent.
             test_agent()
